@@ -279,6 +279,16 @@ class OpenAIClient:
                 for choice in choices
             ]
 
+    @staticmethod
+    def _remove_assistant_names_from_messages(params: Dict[str, Any]):
+        def _remove_assistant_names(messages: List[Dict[str, Any]]):
+            def _remove_name(message: Dict[str, Any]):
+                return {k: v for k, v in message.items() if k != "name"}
+
+            return [_remove_name(m) if m["role"] == "assistant" else m for m in messages]
+
+        return {k: _remove_assistant_names(v) if k == "messages" else v for k, v in params.items()}
+
     def create(self, params: Dict[str, Any]) -> ChatCompletion:
         """Create a completion for a given config using openai's client.
 
@@ -301,7 +311,8 @@ class OpenAIClient:
 
             create_or_parse = _create_or_parse
         else:
-            completions = self._oai_client.chat.completions if "messages" in params else self._oai_client.completions  # type: ignore [attr-defined]
+            params = self._remove_assistant_names_from_messages(params)
+            completions: Completions = self._oai_client.chat.completions if "messages" in params else self._oai_client.completions  # type: ignore [attr-defined]
             create_or_parse = completions.create
 
         # If streaming is enabled and has messages, then iterate over the chunks of the response.
